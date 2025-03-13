@@ -37,6 +37,18 @@ constexpr size_t maxInfoRecursion = 3;
 using BlockMetadata = CompressedBlockMetadata;
 
 //______________________________________________________________________________
+// The alias `BlockRange` represents a range of relevant `BlockMetadata`
+// values. The relevant range is defined by a `std::pair` of indices (as
+// `size_t` values).
+using BlockRange = std::pair<size_t, size_t>;
+
+//______________________________________________________________________________
+// A `std::vector` containing `BlockRange`s. `BlockRange` is an alias for
+// `std::pair<size_t, size_t>` (defines a relevant `BlockMetadata` value
+// section).
+using RelevantBlockRanges = std::vector<BlockRange>;
+
+//______________________________________________________________________________
 /*
 `PrefilterExpression` represents a base class for the following sub-classes that
 implement the block-filtering procedure for the specific relational + logical
@@ -87,14 +99,18 @@ class PrefilterExpression {
   // (1) unqiueness of blocks
   // (2) sorted (order)
   // (3) Constant values for all columns `< evaluationColumn`
-  // To indicate that the possibly incomplete first and last block should be
-  // handled appropriately, the `stripIncompleteBlocks` flag is set to `true`.
-  // The flag value shouldn't be changed in general, because `evaluate()` only
-  // removes the respective block if it is conditionally (inconsistent columns)
-  // necessary.
+  // Remark: The potentially incomplete first/last `BlockMetadata` values in
+  // input are handled automatically. They are stripped at the beginning and
+  // added again when the evaluation procedure was successfully performed.
   std::vector<BlockMetadata> evaluate(std::span<const BlockMetadata> input,
-                                      size_t evaluationColumn,
-                                      bool stripIncompleteBlocks = true) const;
+                                      size_t evaluationColumn) const;
+
+  // `evaluateImpl` is internally used for the actual pre-filter procedure on
+  // the flat `std::span<const ValueId> idSpan`. The `ValueId`s contained
+  // `idSpan` are simply the retrieved bounding `ValueId`s from the for
+  // `evaluate` provided `BlockMetadata` values.
+  virtual RelevantBlockRanges evaluateImpl(
+      std::span<const ValueId> idSpan) const = 0;
 
   // Format for debugging
   friend std::ostream& operator<<(std::ostream& str,
@@ -118,11 +134,6 @@ class PrefilterExpression {
   // corresponding result for those conditions again. If a respective condition
   // is violated, the function performing the checks will throw a
   // `std::runtime_error`.
-  std::vector<BlockMetadata> evaluateAndCheckImpl(
-      std::span<const BlockMetadata> input, size_t evaluationColumn) const;
-
-  virtual std::vector<BlockMetadata> evaluateImpl(
-      std::span<const BlockMetadata> input, size_t evaluationColumn) const = 0;
 };
 
 //______________________________________________________________________________
@@ -156,9 +167,8 @@ class RelationalExpression : public PrefilterExpression {
   std::string asString(size_t depth) const override;
 
  private:
-  std::vector<BlockMetadata> evaluateImpl(
-      std::span<const BlockMetadata> input,
-      size_t evaluationColumn) const override;
+  RelevantBlockRanges evaluateImpl(
+      std::span<const ValueId> idSpan) const override;
 };
 
 //______________________________________________________________________________
@@ -186,9 +196,8 @@ class LogicalExpression : public PrefilterExpression {
   std::string asString(size_t depth) const override;
 
  private:
-  std::vector<BlockMetadata> evaluateImpl(
-      std::span<const BlockMetadata> input,
-      size_t evaluationColumn) const override;
+  RelevantBlockRanges evaluateImpl(
+      std::span<const ValueId> idSpan) const override;
 };
 
 //______________________________________________________________________________
@@ -211,9 +220,8 @@ class NotExpression : public PrefilterExpression {
   std::string asString(size_t depth) const override;
 
  private:
-  std::vector<BlockMetadata> evaluateImpl(
-      std::span<const BlockMetadata> input,
-      size_t evaluationColumn) const override;
+  RelevantBlockRanges evaluateImpl(
+      std::span<const ValueId> idSpan) const override;
 };
 
 //______________________________________________________________________________
