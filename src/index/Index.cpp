@@ -309,7 +309,8 @@ IdTable Index::scan(
     const ad_utility::SharedCancellationHandle& cancellationHandle,
     const LocatedTriplesSnapshot& locatedTriplesSnapshot,
     const LimitOffsetClause& limitOffset) const {
-  return pimpl_->scan(scanSpecification, p, additionalColumns,
+  auto perm = pimpl_->getPermutation(p);
+  return pimpl_->scan(perm.getScanSpecAndBlocks(perm, scanSpecification, locatedTriplesSnapshot), p, additionalColumns,
                       cancellationHandle, locatedTriplesSnapshot, limitOffset);
 }
 

@@ -71,6 +71,7 @@ class Index {
 
   using Filetype = qlever::Filetype;
   using InputFileSpecification = qlever::InputFileSpecification;
+  using ScanSpecAndBlocks = CompressedRelationReader::ScanSpecAndBlocks;
 
   /// Forbid copy and assignment.
   Index& operator=(const Index&) = delete;
